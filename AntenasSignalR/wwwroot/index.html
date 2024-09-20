@@ -3,9 +3,62 @@
 <head>
     <meta charset="utf-8" />
     <title>EPCs de Antenas RFID</title>
+    <style>
+
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f4f4f4;
+        }
+
+        #header {
+            background-color: #4CAF50;
+            color: white;
+            text-align: center;
+            padding: 15px;
+            font-size: 24px;
+            margin-bottom: 20px;
+        }
+
+        #content1 {
+            width: 80%;
+            margin: 20px auto;
+            padding: 15px;
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+
+            #content1 div {
+                border-bottom: 1px solid #ddd;
+                padding: 10px 0;
+            }
+
+                #content1 div:last-child {
+                    border-bottom: none;
+                }
+
+        b {
+            font-size: 18px;
+            color: #333;
+        }
+    </style>
 </head>
 <body>
-    <div id="content1"></div>
+    <div id="header">EPCs de Antenas RFID</div>
+
+    <!-- contenedor para mostrar EPCs y detalles de Antena 196 -->
+    <div id="antenna196" style="border: 1px solid #000; margin-bottom: 20px; padding: 10px;">
+        <h3>EMBARQUE 1</h3>
+        <div id="content196"></div>
+    </div>
+
+    <!-- contenedor para mostrar EPCs y detalles de Antena 199 -->
+    <div id="antenna199" style="border: 1px solid #000; margin-bottom: 20px; padding: 10px;">
+        <h3>EMBARQUE 2 Y 3</h3>
+        <div id="content199"></div>
+    </div>
 
     <script src="https://cdn.jsdelivr.net/npm/@microsoft/signalr@3.1.8/dist/browser/signalr.min.js"></script>
     <script src="https://unpkg.com/rxjs@^7/dist/bundles/rxjs.umd.min.js"></script>
@@ -13,97 +66,82 @@
     <script type="text/javascript">
         const subject = new rxjs.Subject();
 
-        // Función para obtener la información del EPC
-        async function fetchEpcData(epc) {
+        // Suscribimos a los mensajes entrantes
+        subject.subscribe(async (message) => {
             try {
-                const response = await fetch(`http://172.16.10.31/api/socket/${epc}`);
-                if (response.ok) {
-                    const data = await response.json();
-                    return data;
+                // Registrar el mensaje completo en la consola para inspección
+                console.log("Mensaje recibido del servidor:", message);
+
+                // Dividir el mensaje en partes por la coma y el espacio
+                const parts = message.split(", ");
+
+                // Validar que el mensaje tenga exactamente tres partes
+                if (parts.length !== 3) {
+                    console.error("El formato del mensaje es incorrecto o faltan partes:", message);
+                    return; // No continuar si el mensaje no tiene las tres partes
+                }
+
+                // Descomponer las partes del mensaje
+                const [epcPart, antennaPart, lastSeenPart] = parts;
+
+                // Verificar y extraer cada parte, o asignar un valor predeterminado si está ausente
+                const epc = epcPart.split('EPC: ')[1] || "EPC no disponible";
+                const antennaName = antennaPart.split('Antenna: ')[1] || "Antena no disponible";
+                const lastSeenTime = lastSeenPart.split('Last Seen: ')[1] || "Hora no disponible";
+
+                console.log(`EPC: ${epc}, Antenna: ${antennaName}, Last Seen Time: ${lastSeenTime}`);
+
+                // Decidir en qué contenedor colocar la información según la antena
+                if (antennaName === '1') {
+                    console.log("Actualizando contenedor de la antena 196");
+                    const epcContainer196 = document.getElementById("content196");
+                    epcContainer196.innerHTML = `
+                        <div><b>EPC:</b> ${epc}</div>
+                        <div><b>Hora de Salida:</b> ${lastSeenTime}</div>
+                    `;
+                } else if (antennaName === '2') {
+                    console.log("Actualizando contenedor de la antena 199");
+                    const epcContainer199 = document.getElementById("content199");
+                    epcContainer199.innerHTML = `
+                        <div><b>EPC:</b> ${epc}</div>
+                        <div><b>Hora de Salida:</b> ${lastSeenTime}</div>
+                    `;
                 } else {
-                    console.error("Error al obtener los datos del EPC:", response.statusText);
-                    return null;
+                    console.warn("Antena desconocida:", antennaName);
                 }
             } catch (error) {
-                console.error("Error al conectarse con el endpoint:", error);
-                return null;
-            }
-        }
-
-        // Función para mostrar la información del EPC
-        function displayEpcData(epc, data) {
-            // Crear un contenedor para el EPC y sus datos
-            const epcContainer = document.createElement('div');
-            epcContainer.style.marginBottom = "20px"; // Espacio entre EPCs
-
-            // Mostrar el EPC en un elemento <b>
-            const epcElement = document.createElement('b');
-            epcElement.textContent = `[EPC]: ${epc}`;
-            epcContainer.appendChild(epcElement);
-
-            // Crear una lista para los datos del endpoint
-            const dataList = document.createElement('ul');
-
-            // Agregar los elementos de la lista
-            const areaItem = document.createElement('li');
-            areaItem.textContent = `Área: ${data.area}`;
-            dataList.appendChild(areaItem);
-
-            const fechaItem = document.createElement('li');
-            fechaItem.textContent = `Fecha: ${data.fecha}`;
-            dataList.appendChild(fechaItem);
-
-            const claveProductoItem = document.createElement('li');
-            claveProductoItem.textContent = `Clave Producto: ${data.claveProducto}`;
-            dataList.appendChild(claveProductoItem);
-
-            const nombreProductoItem = document.createElement('li');
-            nombreProductoItem.textContent = `Nombre Producto: ${data.nombreProducto}`;
-            dataList.appendChild(nombreProductoItem);
-
-            const pesoNetoItem = document.createElement('li');
-            pesoNetoItem.textContent = `Peso Neto: ${data.pesoNeto} kg`;
-            dataList.appendChild(pesoNetoItem);
-
-            const piezasItem = document.createElement('li');
-            piezasItem.textContent = `Piezas: ${data.piezas}`;
-            dataList.appendChild(piezasItem);
-
-            // Agregar la lista al contenedor
-            epcContainer.appendChild(dataList);
-
-            // Agregar el contenedor a content1
-            document.getElementById("content1").appendChild(epcContainer);
-        }
-
-        subject.subscribe(async (message) => {
-            // Extraer el EPC del mensaje
-            const epc = message.split('EPC: ')[1];  // Asumiendo que el mensaje tiene el formato: "[Antenna] EPC: 0002417019867005"
-
-            // Mostrar el EPC primero
-            const epcContainer = document.createElement('div');
-            epcContainer.innerHTML = `<b>${message}</b>`;
-            document.getElementById("content1").appendChild(epcContainer);
-
-            // Hacer la solicitud al endpoint
-            const epcData = await fetchEpcData(epc);
-            if (epcData) {
-                displayEpcData(epc, epcData);
+                // Registrar cualquier error que ocurra durante el procesamiento
+                console.error("Error al procesar el mensaje:", error);
             }
         });
 
+        // Configurar la conexión con SignalR
         const connection = new signalR.HubConnectionBuilder()
             .withUrl("/message")
+            .withAutomaticReconnect()
             .build();
 
+        // Iniciar la conexión
         connection.start().then(() => {
-            console.log("Conectado");
-        }).catch((err) => console.error(err.toString()));
+            console.log("Conectado con éxito a SignalR");
+        }).catch((err) => console.error("Error al conectar con SignalR:", err.toString()));
 
+        // Cuando recibamos un mensaje a través de SignalR, lo procesamos
         connection.on("sendMessage", (message) => {
-            console.log(message);
-            subject.next(message);
+            console.log("Mensaje recibido:", message);
+            subject.next(message); // Enviar el mensaje al subject para ser procesado
+        });
+
+        // Logs adicionales para reconexiones
+        connection.onreconnecting((error) => {
+            console.warn("Reconectando a SignalR... Error: ", error);
+        });
+
+        connection.onreconnected((connectionId) => {
+            console.log("Reconectado con éxito a SignalR. ConnectionId:", connectionId);
+        });
+
+        connection.onclose((error) => {
+            console.error("Conexión de SignalR cerrada. Error:", error);
         });
     </script>
-</body>
-</html>
